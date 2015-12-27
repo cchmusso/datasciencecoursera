@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title>Practical Machine Learning - Course Project</title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="1404.13">
+  <style type="text/css">
+    p.p3 {margin: 0.0px 0.0px 12.0px 0.0px; line-height: 14.0px; font: 12.0px Helvetica; color: #000000; -webkit-text-stroke: #000000}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 12.0px; font: 12.0px 'Lucida Console'; color: #000000; -webkit-text-stroke: #000000; background-color: #f8f8f8}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 12.0px; font: 12.0px 'Lucida Console'; color: #000000; -webkit-text-stroke: #000000; background-color: #f8f8f8; min-height: 12.0px}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 12.0px; font: 12.0px 'Lucida Console'; color: #000000; -webkit-text-stroke: #000000}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<h1 style="margin: 0.0px 0.0px 17.7px 0.0px; line-height: 30.0px; font: 26.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Practical Machine Learning - Course Project</b></span></h1>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Introduction</b></span></h2>
+<p class="p3"><span class="s1">Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. <br>
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to predict the manner in which they did the exercise.</span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Load the data</b></span></h2>
+<p class="p4"><span class="s1">#Set working directory</span></p>
+<p class="p4"><span class="s1">setwd("~/Documents/Coursera/datasciencecoursera/PracticalMachineLearning/")</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1">#Load libraries</span></p>
+<p class="p4"><span class="s1">library("caret")</span></p>
+<p class="p6"><span class="s1">## Loading required package: lattice</span></p>
+<p class="p6"><span class="s1">## Loading required package: ggplot2</span></p>
+<p class="p4"><span class="s1">#Download the data</span></p>
+<p class="p4"><span class="s1">if(!file.exists("pml-training.csv")){download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv")}</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1">if(!file.exists("pml-testing.csv")){download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv")}</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1">#Read the training data and replace empty values by NA</span></p>
+<p class="p4"><span class="s1">trData&lt;- read.csv("pml-training.csv", sep=",", header=TRUE, na.strings = c("NA",""))</span></p>
+<p class="p4"><span class="s1">teData&lt;- read.csv("pml-testing.csv", sep=",", header=TRUE, na.strings = c("NA",""))</span></p>
+<p class="p4"><span class="s1">dim(trData)</span></p>
+<p class="p6"><span class="s1">## [1] 19622 <span class="Apple-converted-space">  </span>160</span></p>
+<p class="p4"><span class="s1">dim(teData)</span></p>
+<p class="p6"><span class="s1">## [1]<span class="Apple-converted-space">  </span>20 160</span></p>
+<p class="p3"><span class="s1">Our data consists of 19622 values of 160 variables.<span class="Apple-converted-space"> </span></span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Clean the data</b></span></h2>
+<p class="p3"><span class="s1">We remove columns with missing value.<span class="Apple-converted-space"> </span></span></p>
+<p class="p4"><span class="s1">trData &lt;- trData[,(colSums(is.na(trData)) == 0)]</span></p>
+<p class="p4"><span class="s1">dim(trData)</span></p>
+<p class="p6"><span class="s1">## [1] 19622<span class="Apple-converted-space">    </span>60</span></p>
+<p class="p4"><span class="s1">teData &lt;- teData[,(colSums(is.na(teData)) == 0)]</span></p>
+<p class="p4"><span class="s1">dim(teData)</span></p>
+<p class="p6"><span class="s1">## [1] 20 60</span></p>
+<p class="p3"><span class="s1">We reduced our data to 60 variables.</span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Validation set</b></span></h2>
+<p class="p3"><span class="s1">We want a 70% observation training dataset to train our model. We will then test it on the last 30%.</span></p>
+<p class="p4"><span class="s1">set.seed(123)<span class="Apple-converted-space"> </span></span></p>
+<p class="p4"><span class="s1">inTrain&lt;- createDataPartition(trData$classe, p=0.70, list=FALSE)</span></p>
+<p class="p4"><span class="s1">training&lt;- trData[inTrain, ]</span></p>
+<p class="p4"><span class="s1">testing&lt;- trData[-inTrain, ]</span></p>
+<p class="p4"><span class="s1">dim(training) ; dim(testing)</span></p>
+<p class="p6"><span class="s1">## [1] 13737<span class="Apple-converted-space">    </span>60</span></p>
+<p class="p6"><span class="s1">## [1] 5885 <span class="Apple-converted-space">  </span>60</span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Preprocessing</b></span></h2>
+<p class="p3"><span class="s1">We preprocess our data using a principal component analysis, leaving out the last column “classe”. We then apply the pre-processing to both our training and validation subsets.</span></p>
+<p class="p4"><span class="s1">classe_idx &lt;-<span class="Apple-converted-space">  </span>which(colnames(training) =="classe")</span></p>
+<p class="p4"><span class="s1">preProc &lt;- preProcess(training[, -classe_idx], method = "pca", thresh = 0.99)</span></p>
+<p class="p4"><span class="s1">training_preprocess &lt;- predict(preProc, training[, -classe_idx])</span></p>
+<p class="p4"><span class="s1">testing_preprocess &lt;- predict(preProc, testing[, -classe_idx])</span></p>
+<p class="p4"><span class="s1">dim(training_preprocess)</span></p>
+<p class="p6"><span class="s1">## [1] 13737<span class="Apple-converted-space">    </span>42</span></p>
+<p class="p4"><span class="s1">dim(testing_preprocess)</span></p>
+<p class="p6"><span class="s1">## [1] 5885 <span class="Apple-converted-space">  </span>42</span></p>
+<p class="p3"><span class="s1">Our data is now composed of 43 variables.<span class="Apple-converted-space"> </span></span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Model</b></span></h2>
+<p class="p4"><span class="s1">library(randomForest)</span></p>
+<p class="p4"><span class="s1">modFitrf &lt;- train(training$classe ~ ., method = "rf", data = training_preprocess, trControl = trainControl(method = "cv", number = 5), tuneGrid=data.frame(mtry=20))</span></p>
+<p class="p4"><span class="s1">modFitrf</span></p>
+<p class="p6"><span class="s1">## Random Forest<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## 13737 samples</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">    </span>41 predictor</span></p>
+<p class="p6"><span class="s1">## <span class="Apple-converted-space">    </span>5 classes: 'A', 'B', 'C', 'D', 'E'<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## No pre-processing</span></p>
+<p class="p6"><span class="s1">## Resampling: Cross-Validated (5 fold)<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## Summary of sample sizes: 10989, 10988, 10990, 10991, 10990<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## Resampling results</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## <span class="Apple-converted-space">  </span>Accuracy <span class="Apple-converted-space">  </span>Kappa<span class="Apple-converted-space">      </span>Accuracy SD<span class="Apple-converted-space">  </span>Kappa SD<span class="Apple-converted-space">   </span></span></p>
+<p class="p6"><span class="s1">## <span class="Apple-converted-space">  </span>0.9891533<span class="Apple-converted-space">  </span>0.9862775<span class="Apple-converted-space">  </span>0.003310013<span class="Apple-converted-space">  </span>0.004188325</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space"> </span></span></p>
+<p class="p6"><span class="s1">## Tuning parameter 'mtry' was held constant at a value of 20</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space"> </span></span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Interpretation</b></span></h2>
+<p class="p3"><span class="s1">Let's plot the importance of each individual variable</span></p>
+<p class="p4"><span class="s1">varImpPlot(modFitrf$finalModel, sort = TRUE, type = 1, pch = 19, col = 1, cex = 0.6, main = "Importance of the Individual Principal Components")</span></p>
+<p class="p6"><span class="s1">## Error in imp[, i]: indice hors limites</span></p>
+<p class="p3"><span class="s1">This plot shows each of the principal components in order from most important to least important.</span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Cross Validation Testing and Out-of-Sample Error Estimate</b></span></h2>
+<p class="p3"><span class="s1">Let's apply our training model on our testing database, to check its accuracy.<span class="Apple-converted-space"> </span></span></p>
+<h4 style="margin: 0.0px 0.0px 16.0px 0.0px; line-height: 14.0px; font: 12.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Accuracy and Estimated out of sample error</b></span></h4>
+<p class="p4"><span class="s1">predValidRF &lt;- predict(modFitrf, testing_preprocess)</span></p>
+<p class="p4"><span class="s1">confus &lt;- confusionMatrix(testing$classe, predValidRF)</span></p>
+<p class="p4"><span class="s1">confus$table</span></p>
+<p class="p6"><span class="s1">## <span class="Apple-converted-space">          </span>Reference</span></p>
+<p class="p6"><span class="s1">## Prediction<span class="Apple-converted-space">    </span>A<span class="Apple-converted-space">    </span>B<span class="Apple-converted-space">    </span>C<span class="Apple-converted-space">    </span>D<span class="Apple-converted-space">    </span>E</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">          </span>A 1672<span class="Apple-converted-space">    </span>2<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>0</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">          </span>B<span class="Apple-converted-space">    </span>7 1129<span class="Apple-converted-space">    </span>2<span class="Apple-converted-space">    </span>1<span class="Apple-converted-space">    </span>0</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">          </span>C<span class="Apple-converted-space">    </span>0 <span class="Apple-converted-space">  </span>13 1011<span class="Apple-converted-space">    </span>2<span class="Apple-converted-space">    </span>0</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">          </span>D<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>0 <span class="Apple-converted-space">  </span>11<span class="Apple-converted-space">  </span>949<span class="Apple-converted-space">    </span>4</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">          </span>E<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>0<span class="Apple-converted-space">    </span>3 1079</span></p>
+<p class="p3"><span class="s1">We can notice that there are very few variables out of this model.</span></p>
+<p class="p4"><span class="s1">accur &lt;- postResample(testing$classe, predValidRF)</span></p>
+<p class="p4"><span class="s1">modAccuracy &lt;- accur[[1]]</span></p>
+<p class="p4"><span class="s1">modAccuracy</span></p>
+<p class="p6"><span class="s1">## [1] 0.9923534</span></p>
+<p class="p4"><span class="s1">out_of_sample_error &lt;- 1 - modAccuracy</span></p>
+<p class="p4"><span class="s1">out_of_sample_error</span></p>
+<p class="p6"><span class="s1">## [1] 0.007646559</span></p>
+<p class="p3"><span class="s1">The estimated accuracy of the model is 99% and the estimated out-of-sample error based on our fitted model applied to the cross validation dataset is 0.6%.</span></p>
+<h2 style="margin: 0.0px 0.0px 17.9px 0.0px; line-height: 25.0px; font: 22.0px Helvetica; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>Application of this model on the 20 test cases provided</b></span></h2>
+<p class="p3"><span class="s1">We have already clean the test data base (teData). We delete the “problem id” column as it is useless for our analysis.</span></p>
+<p class="p4"><span class="s1">test &lt;- predict(preProc, teData[, -60])</span></p>
+<p class="p4"><span class="s1">pred_final &lt;- predict(modFitrf, test)</span></p>
+<p class="p4"><span class="s1">pred_final</span></p>
+<p class="p6"><span class="s1">##<span class="Apple-converted-space">  </span>[1] B A C A A E D B A A B C B A E E A B B B</span></p>
+<p class="p6"><span class="s1">## Levels: A B C D E</span></p>
+<p class="p3"><span class="s1">Here are our results, we will use them for the submission of this course project in the coursera platform.</span></p>
+</body>
+</html>

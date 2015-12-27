@@ -12,3 +12,17 @@ We computed the accuracy for each model with a cross validation of 5 folds. The 
 
 ## Prediction
 Finally, we used our final model to estimate the 20 test cases. We obtained successfully a good estimate for each test case. 
+
+
+We then tested it on the test data base. Here are our results : B A C A A B D B A A B C B A E E A B B B.
+
+
+B A C A A 
+**E** D B A A 
+B C B A E 
+E A B B B
+
+
+
+
+
