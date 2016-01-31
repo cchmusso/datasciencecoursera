@@ -1,9 +1,4 @@
----
-title: "CodeBOOK"
-author: "Claire Musso"
-date: "January 28, 2016"
-output: html_document
----
+
 
 # Original Data
 * [source](https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip)
