@@ -10,9 +10,8 @@
 
 
 ## Load required libraries.
-library(plyr)
-library(Hmisc)
 library(stringi)
+
 ## If data does not exist, dowload it. 
 if(!dir.exists("UCI HAR Dataset")) {
   fileUrl<-"https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
@@ -71,3 +70,4 @@ tidy_dataset_averaged <- aggregate( . ~ activity+subject, data= tidy_dataset, me
 write.table(tidy_dataset_averaged,"tidy_data_averaged.txt",row.names=F)
 
 message("Please find the tidy data in the tidy_data_averaged.txt file saved the working directory")
+
