@@ -12,3 +12,6 @@ GettingCleaningData/*
 Planning.numbers
 PracticalMachineLearning/Quiz3.R
 PracticalMachineLearning/Quiz4.R
+*cache/
+*figure/
+ReproducibleResearch/repdata-data-StormData.csv.bz2
