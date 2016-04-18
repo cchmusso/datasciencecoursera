@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning - Course Project"
 author: "cchmusso"
-date: "27 december 2015"
+date: "17 April 2016"
 output: html_document
 ---
 # Practical Machine Learning - Course Project
@@ -9,10 +9,13 @@ output: html_document
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. </br> In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to predict the manner in which they did the exercise.
 
 ## Load the data
+```{r settings,include=F}
+library(knitr)
+options(digits = 7)
+opts_chunk$set(fig.width=10)
+opts_chunk$set(cache = TRUE)
+```
 ```{r}
-#Set working directory
-setwd("~/Documents/Coursera/datasciencecoursera/PracticalMachineLearning/")
-
 #Load libraries
 library("caret")
 
@@ -23,10 +26,10 @@ if(!file.exists("pml-testing.csv")){download.file("https://d396qusza40orc.cloudf
 
 
 #Read the training data and replace empty values by NA
-trData<- read.csv("pml-training.csv", sep=",", header=TRUE, na.strings = c("NA",""))
-teData<- read.csv("pml-testing.csv", sep=",", header=TRUE, na.strings = c("NA",""))
-dim(trData)
-dim(teData)
+trainingDataSet<- read.csv("pml-training.csv", sep=",", header=TRUE, na.strings = c("NA","",'#DIV/0!'))
+testingDataSet<- read.csv("pml-testing.csv", sep=",", header=TRUE, na.strings = c("NA","",'#DIV/0!'))
+dim(trainingDataSet)
+dim(testingDataSet)
 
 ```
 Our data consists of 19622 values of 160 variables. 
@@ -36,45 +39,56 @@ Our data consists of 19622 values of 160 variables.
 We remove columns with missing value. 
 
 ```{r}
-trData <- trData[,(colSums(is.na(trData)) == 0)]
-dim(trData)
-teData <- teData[,(colSums(is.na(teData)) == 0)]
-dim(teData)
+trainingDataSet <- trainingDataSet[,(colSums(is.na(trainingDataSet)) == 0)]
+dim(trainingDataSet)
+testingDataSet <- testingDataSet[,(colSums(is.na(testingDataSet)) == 0)]
+dim(testingDataSet)
 ```
 We reduced our data to 60 variables.
 
+## Preprocess the data
+We first preprocess our data with knnImpute. We observe that there are now only 27 variables present.  
+```{r}
+numericalsIdx <- which(lapply(trainingDataSet, class) %in% "numeric")
+preprocessModel <-preProcess(trainingDataSet[,numericalsIdx],method=c('knnImpute', 'center', 'scale'))
+preprocessModel
+pre_trainingDataSet <- predict(preprocessModel, trainingDataSet[,numericalsIdx])
+pre_trainingDataSet$classe <- trainingDataSet$classe
+
+pre_testingDataSet <-predict(preprocessModel,testingDataSet[,numericalsIdx])
+```
+
+## Removing the non zero variables  
+Removing the variables with values near zero, that means that they have not so much meaning in the predictions
+
+```{r}
+nzv <- nearZeroVar(pre_trainingDataSet,saveMetrics=TRUE)
+pre_trainingDataSet <- pre_trainingDataSet[,nzv$nzv==FALSE]
+
+nzv <- nearZeroVar(pre_testingDataSet,saveMetrics=TRUE)
+pre_testingDataSet <- pre_testingDataSet[,nzv$nzv==FALSE]
+```
+
 
 ## Validation set
-We want a 70% observation training dataset to train our model. We will then test it on the last 30%.
+We want a 75% observation training dataset to train our model. We will then validate it on the last 25%.
 
 ```{r}
-set.seed(123) 
-inTrain<- createDataPartition(trData$classe, p=0.70, list=FALSE)
-training<- trData[inTrain, ]
-testing<- trData[-inTrain, ]
-dim(training) ; dim(testing)
+set.seed(12031987)
+idxTrain<- createDataPartition(pre_trainingDataSet$classe, p=3/4, list=FALSE)
+training<- pre_trainingDataSet[idxTrain, ]
+validation <- pre_trainingDataSet[-idxTrain, ]
+dim(training) ; dim(validation)
 ```
 
 
-## Preprocessing
-We preprocess our data using a principal component analysis, leaving out the last column "classe". We then apply the pre-processing to both our training and validation subsets.
-
-```{r}
-classe_idx <-  which(colnames(training) =="classe")
-preProc <- preProcess(training[, -classe_idx], method = "pca", thresh = 0.99)
-training_preprocess <- predict(preProc, training[, -classe_idx])
-testing_preprocess <- predict(preProc, testing[, -classe_idx])
-dim(training_preprocess)
-dim(testing_preprocess)
-```
-Our data is now composed of 43 variables. 
-
-## Model
-
+## Train Model
+We train a model using random forest with a cross validation of 5 folds to avoid overfitting. 
 ```{r cache=TRUE}
 library(randomForest)
-modFitrf <- train(training$classe ~ ., method = "rf", data = training_preprocess, trControl = trainControl(method = "cv", number = 5), tuneGrid=data.frame(mtry=20))
+modFitrf <- train(classe ~., method="rf", data=training, trControl=trainControl(method='cv'), number=5, allowParallel=TRUE, importance=TRUE )
 modFitrf
+
 ```
 
 ## Interpretation
@@ -93,14 +107,14 @@ Let's apply our training model on our testing database, to check its accuracy.
 
 #### Accuracy and Estimated out of sample error
 ```{r}
-predValidRF <- predict(modFitrf, testing_preprocess)
-confus <- confusionMatrix(testing$classe, predValidRF)
+predValidRF <- predict(modFitrf, validation)
+confus <- confusionMatrix(validation$classe, predValidRF)
 confus$table
 ```
 We can notice that there are very few variables out of this model.
 
 ```{r}
-accur <- postResample(testing$classe, predValidRF)
+accur <- postResample(validation$classe, predValidRF)
 modAccuracy <- accur[[1]]
 modAccuracy
 
@@ -108,13 +122,12 @@ out_of_sample_error <- 1 - modAccuracy
 out_of_sample_error
 ```
 
-The estimated accuracy of the model is 99% and the estimated out-of-sample error based on our fitted model applied to the cross validation dataset is 0.6%.
+The estimated accuracy of the model is 99.6% and the estimated out-of-sample error based on our fitted model applied to the cross validation dataset is 0.4%.
 
 ## Application of this model on the 20 test cases provided
-We have already clean the test data base (teData). We delete the "problem id" column as it is useless for our analysis.
+We have already clean and pre process the test dataset. We delete the "problem id" column as it is useless for our analysis.
 ```{r}
-test <- predict(preProc, teData[, -60])
-pred_final <- predict(modFitrf, test)
+pred_final <- predict(modFitrf, pre_testingDataSet)
 pred_final
 ```
 

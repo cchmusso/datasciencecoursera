@@ -1,0 +1,14 @@
+.Rproj.user
+.Rhistory
+.RData
+.httr-oauth
+GettingCleaningData/UCI\ HAR\ Dataset/
+GettingCleaningData/*
+*/rsconnect/*
+*/*_cache/*
+*/*_files/*
+*.csv
+*.DS_Store
+Planning.numbers
+PracticalMachineLearning/Quiz3.R
+PracticalMachineLearning/Quiz4.R
