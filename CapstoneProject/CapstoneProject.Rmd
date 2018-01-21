@@ -1,0 +1,195 @@
+---
+title: "Data Science - Capstone Project"
+author: "Claire Musso"
+date: "18/02/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries, echo=FALSE, message=FALSE}
+# Load libraries
+library(tm)
+library(stringi)
+library(wordcloud)
+library(cldr)
+
+library("RWeka", lib.loc="/Library/Frameworks/R.framework/Versions/3.3/Resources/library")
+options(mc.cores=8)
+
+```
+
+# Introduction
+This is the Milestone Report for the Coursera Data Science Capstone project. The goal of this project is to create a predictive text model using a large text corpus of documents as training data. Natural language processing techniques will be used to perform the analysis and build the predictive model.
+
+This milestone report describes the major features of the training data with our exploratory data analysis and summarizes our plans for creating our predictive model.
+
+
+## Task 0: Understanding the Problem
+
+Around the world, people are spending an increasing amount of time on their mobile devices for email, social networking, banking and a whole range of other activities. To facilitate typing on mobile devices, SwiftKey builds a smart keyboard that makes it easier for people to type on their mobile devices. One cornerstone of their smart keyboard is predictive text models.
+
+Various language files have been provided for this project. The three English language ones, which we will be using in this exploration, are for word corpuses from blogs, news feeds and Twitter. 
+
+## Task 1: Data Acquisition and Cleaning
+
+### Data Acquisition
+```{r Data Acquisition}
+#### Download and Load Dataset
+
+# Create Data folder (if it does not already exist)
+datasFolder <- "Data"
+if (!dir.exists(datasFolder)){
+  dir.create(datasFolder)
+}
+
+# Download Switfkey dataset (if it has not been downloaded yet)
+url  <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+zipfile <- "Coursera-SwiftKey.zip"
+zipfilePath <- paste(datasFolder, zipfile, sep="/")
+if (!file.exists(zipfilePath)){
+  download.file(url, destfile=zipfilePath, method="curl")
+  unzip(zipfile, exdir = datasFolder)
+}
+```
+### Data information
+
+```{r Data information, cache=TRUE}
+# Get file sizes
+blogSize <- file.info("Data/final/en_US/en_US.blogs.txt")$size / 1024 ^ 2
+newsSize <- file.info("Data/final/en_US/en_US.news.txt")$size / 1024 ^ 2
+twitterSize <- file.info("Data/final/en_US/en_US.twitter.txt")$size / 1024 ^ 2
+
+# Read the blogs and Twitter data into R
+blogs <- readLines("Data/final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
+news <- readLines("Data/final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
+twitter <- readLines("Data/final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+
+# Get words in files
+blogsWords <- stri_count_words(blogs)
+newsWords <- stri_count_words(news)
+twitterWords <- stri_count_words(twitter)
+
+# Summary of the data sets
+data.frame(source = c("blogs", "news", "twitter"),
+           file.size.MB = c(blogSize, newsSize, twitterSize),
+           num.lines = c(length(blogs), length(news), length(twitter)),
+           max.line = c(max(sapply(blogs, nchar)), max(sapply(news, nchar)), max(sapply(twitter, nchar))),
+           num.words = c(sum(blogsWords), sum(newsWords), sum(twitterWords)),
+           mean.num.words = c(mean(blogsWords), mean(newsWords), mean(twitterWords)))
+
+```
+
+```{r}
+#In the en_US twitter data set, if you divide the number of lines where the word "love" (all lowercase) occurs by the number of lines the word "hate" (all lowercase) occurs, about what do you get?
+sum(stri_count_fixed(twitter, "love")>0)/sum(stri_count_fixed(twitter, "hate")>0)
+
+#The one tweet in the en_US twitter data set that matches the word "biostats" says what?
+twitter[which(stri_detect_fixed(twitter, "biostats"))]
+
+#How many tweets have the exact characters "A computer once beat me at chess, but it was no match for me at kickboxing". (I.e. the line matches those characters exactly.)
+sum(stri_count_fixed(twitter, "A computer once beat me at chess, but it was no match for me at kickboxing")>0)
+
+
+```
+
+
+### Data Cleaning
+Before performing exploratory analysis, we will first select randomly a sample of the data and then clean the data. We will remove URLs, special characters, punctuations, numbers, excess whitespace, stopwords, and out the text to lower case. Since the data sets are quite large, we will randomly choose 1% of the data to demonstrate the data cleaning and exploratory analysis.
+
+
+```{r Data Sample, cache=TRUE}
+# Data Sample
+set.seed(333)
+dataSample <- c(sample(blogs, length(blogs) * 0.01),
+                 sample(news, length(news) * 0.01),
+                 sample(twitter, length(twitter) * 0.01))
+```
+
+```{r Data Cleaning, cache=TRUE}
+# Corpus creation and data cleaning
+corpus <- VCorpus(VectorSource(dataSample))
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+# Remove URLs
+corpus <- tm_map(corpus, toSpace, "(f|ht)tp(s?)://(.*)[.][a-z]+")
+# remove RTs and vias (mostly from tweets)
+corpus <- tm_map(corpus, toSpace, "RT |via ")
+# replace twitter accounts (@diegopozu) by space
+corpus <- tm_map(corpus, toSpace, "@[^\\s]+")
+corpus <- tm_map(corpus, tolower)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+corpus <- tm_map(corpus, removeNumbers)
+# remove double whitespaces
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, PlainTextDocument)
+```
+
+
+
+
+
+
+## Task 2 - Exploratory data analysis
+Questions to consider: 
+
+* Some words are more frequent than others - what are the distributions of word frequencies?
+* What are the frequencies of 2-grams and 3-grams in the dataset?
+* How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+* How do you evaluate how many of the words come from foreign languages?
+* Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+
+### Word Frequencies
+```{r Functions, echo=FALSE}
+getFreq <- function(tdm) {
+  freq <- sort(rowSums(as.matrix(tdm)), decreasing = TRUE)
+  return(data.frame(word = names(freq), freq = freq))
+}
+
+# Using the RWeka package for the 1-gram(single word) tokenization, 2-grams sets and 3-grams sets for further exploratory analysis.
+onegram <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+bigram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+trigram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+
+```
+
+```{r Frequencies, cache=TRUE}
+# Get frequencies of most common n-grams in data sample
+freq1 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = onegram)))
+freq2 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = bigram)))
+freq3 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = trigram)))
+```
+
+
+
+```{r HistWordCloud}
+#wordcloud(names(blogs.freq), blogs.freq, min.freq=100, max.words=100)
+par(mfrow = c(1, 3))
+hist(freq1$freq, breaks = 1000, main="Histogram of 1-gramm")
+hist(freq2$freq, breaks = 1000, main="Histogram of 2-gramm")
+hist(freq3$freq, breaks = 1000, main="Histogram of 3-gramm")
+
+wordcloud(freq1$word,  freq1$freq, scale=c(5,0.1), max.words=100, random.order=FALSE, 
+          rot.per=0.5, colors=brewer.pal(6,"Dark2"))
+wordcloud(freq2$word,  freq1$freq, scale=c(5,0.1), max.words=100, random.order=FALSE, 
+          rot.per=0.5, colors=brewer.pal(6,"Dark2"))
+wordcloud(freq3$word,  freq1$freq, scale=c(5,0.1), max.words=100, random.order=FALSE, 
+          rot.per=0.5, colors=brewer.pal(6,"Dark2"))
+par(mfrow = c(1, 1))
+```
+
+### Words From Foreign languages
+cldr
+In this section, we evaluate the number of foreign (non-English) words in the corpus. We use 1-gram Tokens to do this analysis. The Compact Language Detector for R package (cldr library) provides a way to detect the language of the words in the corpus. cldr package is available at: CRAN website website. cldr::detectLanguage method returns the detected language of the words and provides a confidence score for the detection.
+
+```{r Foreign}
+token.language <- detectLanguage(c(blogs, news, twitter))
+english.words <- which(token.language$percentScore1 > 50 & token.language$detectedLanguage == "ENGLISH")
+foreign.words <- which(token.language$percentScore1 > 50 & token.language$detectedLanguage != "ENGLISH")
+```
+The ratio of number of foreign words over English words (detected with over 50% confidence) is: 5.4%. Therefore, the presence of foreign words in the corpus does not impact our prediction algorithm significantly. 
+
+### Next Step
+The next step of the project is to design and implement the prediction algorithm of word based on previous entries. We will build a basic n-gram model for predicting the next word based on the previous 1, 2, or 3 words and then deploye our results using shiny application. 

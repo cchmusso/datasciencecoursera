@@ -1,0 +1,153 @@
+---
+title: "Data Science - Capstone Project"
+author: "Claire Musso"
+date: "18/02/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries, echo=FALSE, message=FALSE}
+# Load libraries
+library(tm)
+library(stringi)
+library(wordcloud)
+library(Rweka)
+options(mc.cores=1)
+
+```
+
+## Task 0: Understanding the Problem
+
+## Task 1: Data Acquisition and Cleaning
+
+### Data Acquisition
+```{r Data Acquisition}
+#### Download and Load Dataset
+
+# Create Data folder (if it does not already exist)
+datasFolder <- "Data"
+if (!dir.exists(datasFolder)){
+  dir.create(datasFolder)
+}
+
+# Download Switfkey dataset (if it has not been downloaded yet)
+url  <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+zipfile <- "Coursera-SwiftKey.zip"
+zipfilePath <- paste(datasFolder, zipfile, sep="/")
+if (!file.exists(zipfilePath)){
+  download.file(url, destfile=zipfilePath, method="curl")
+  unzip(zipfile, exdir = datasFolder)
+}
+```
+### Data information
+
+```{r Data information, cache=TRUE}
+# Get file sizes
+blogSize <- file.info("Data/final/en_US/en_US.blogs.txt")$size / 1024 ^ 2
+newsSize <- file.info("Data/final/en_US/en_US.news.txt")$size / 1024 ^ 2
+twitterSize <- file.info("Data/final/en_US/en_US.twitter.txt")$size / 1024 ^ 2
+
+# Read the blogs and Twitter data into R
+blogs <- readLines("Data/final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
+news <- readLines("Data/final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
+twitter <- readLines("Data/final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+
+# Get words in files
+blogsWords <- stri_count_words(blogs)
+newsWords <- stri_count_words(news)
+twitterWords <- stri_count_words(twitter)
+
+# Summary of the data sets
+data.frame(source = c("blogs", "news", "twitter"),
+           file.size.MB = c(blogSize, newsSize, twitterSize),
+           num.lines = c(length(blogs), length(news), length(twitter)),
+           num.words = c(sum(blogsWords), sum(newsWords), sum(twitterWords)),
+           mean.num.words = c(mean(blogsWords), mean(newsWords), mean(twitterWords)))
+
+```
+
+### Data Cleaning
+Before performing exploratory analysis, we will first select randomly a sample of the data and then clean the data. We will remove URLs, special characters, punctuations, numbers, excess whitespace, stopwords, and out the text to lower case. Since the data sets are quite large, we will randomly choose 1% of the data to demonstrate the data cleaning and exploratory analysis.
+
+
+```{r Data Sample, cache=TRUE}
+# Data Sample
+set.seed(333)
+dataSample <- c(sample(blogs, length(blogs) * 0.01),
+                 sample(news, length(news) * 0.01),
+                 sample(twitter, length(twitter) * 0.01))
+```
+
+```{r Data Cleaning, cache=TRUE}
+# Corpus creation and data cleaning
+corpus <- VCorpus(VectorSource(dataSample))
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+# remove URLs
+corpus <- tm_map(corpus, toSpace, "(f|ht)tp(s?)://(.*)[.][a-z]+")
+# remove RTs and vias (mostly from tweets)
+corpus <- tm_map(corpus, toSpace, "RT |via ")
+# replace twitter accounts (@diegopozu) by space
+corpus <- tm_map(corpus, toSpace, "@[^\\s]+")
+corpus <- tm_map(corpus, tolower)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+corpus <- tm_map(corpus, removeNumbers)
+# remove double whitespaces
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, PlainTextDocument)
+```
+
+
+
+
+
+
+## Task 2 - Exploratory data analysis
+Questions to consider: 
+
+* Some words are more frequent than others - what are the distributions of word frequencies?
+* What are the frequencies of 2-grams and 3-grams in the dataset?
+* How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+* How do you evaluate how many of the words come from foreign languages?
+* Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+
+
+```{r Functions, echo=FALSE}
+getFreq <- function(tdm) {
+  freq <- sort(rowSums(as.matrix(tdm)), decreasing = TRUE)
+  return(data.frame(word = names(freq), freq = freq))
+}
+
+# Using the RWeka package for the 1-gram(single word) tokenization, 2-grams sets and 3-grams sets for further exploratory analysis.
+onegram <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1),delimiters = " \\r\\n\\t.,;:\"()?!")
+bigram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2),delimiters = " \\r\\n\\t.,;:\"()?!")
+trigram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3),delimiters = " \\r\\n\\t.,;:\"()?!")
+
+
+
+# makePlot <- function(data, label) {
+#   ggplot(data[1:30,], aes(reorder(word, -freq), freq)) +
+#          labs(x = label, y = "Frequency") +
+#          theme(axis.text.x = element_text(angle = 60, size = 12, hjust = 1)) +
+#          geom_bar(stat = "identity", fill = I("grey50"))
+# }
+```
+```{r Frequencies}
+# Get frequencies of most common n-grams in data sample
+freq1 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = onegram)))
+freq2 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = bigram)))
+freq3 <- getFreq(TermDocumentMatrix(corpus, control = list(tokenize = trigram)))
+```
+
+
+
+```{r}
+#wordcloud(names(blogs.freq), blogs.freq, min.freq=100, max.words=100)
+
+```
+
+
+
